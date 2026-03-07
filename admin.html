@@ -454,10 +454,47 @@
     .form-group.span2 { grid-column: span 1; }
   }
 
+  /* ── HAMBURGER ── */
+  .hamburger {
+    display: none;
+    flex-direction: column; gap: 5px;
+    cursor: pointer; padding: 8px;
+    background: none; border: none;
+    z-index: 300;
+  }
+  .hamburger span {
+    display: block; width: 22px; height: 2px;
+    background: var(--ink); border-radius: 2px;
+    transition: all 0.3s;
+  }
+  .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 99;
+  }
+  .sidebar-overlay.show { display: block; }
+
   @media (max-width: 700px) {
-    .sidebar { transform: translateX(-100%); }
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      z-index: 200;
+    }
+    .sidebar.open { transform: translateX(0); }
     .main { margin-left: 0; }
     .page { padding: 16px; }
+    .hamburger { display: flex; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .topbar { padding: 0 16px; }
+    thead th:nth-child(4),
+    thead th:nth-child(5),
+    tbody td:nth-child(4),
+    tbody td:nth-child(5) { display: none; }
   }
 </style>
 </head>
@@ -477,6 +514,10 @@
   <button class="nav-item active" onclick="showPage('students', this)">
     <span class="nav-icon">🎓</span> Students
     <span class="nav-badge" id="navStudentCount">0</span>
+  </button>
+  <button class="nav-item" onclick="showPage('teachers', this)">
+    <span class="nav-icon">👨‍🏫</span> Teachers
+    <span class="nav-badge" id="navTeacherCount">0</span>
   </button>
   <button class="nav-item" onclick="showPage('overview', this)">
     <span class="nav-icon">📊</span> Overview
@@ -507,8 +548,14 @@
 <!-- MAIN -->
 <div class="main">
 
+  <!-- SIDEBAR OVERLAY -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
   <!-- TOPBAR -->
   <div class="topbar">
+    <button class="hamburger" id="hamburger" onclick="toggleSidebar()">
+      <span></span><span></span><span></span>
+    </button>
     <div class="topbar-title">EduCore Admin &nbsp;›&nbsp; <span id="pageTitle">Students</span></div>
     <div class="topbar-right">
       <button class="btn btn-logout" onclick="logout()">🚪 Logout</button>
@@ -677,6 +724,37 @@
     </div>
   </div>
 
+  <!-- ══ TEACHERS PAGE ══ -->
+  <div class="page" id="page-teachers">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Teachers</div>
+        <div class="page-subtitle" id="teacherCountText">Loading teachers…</div>
+      </div>
+      <button class="btn btn-primary" onclick="openTeacherModal()">＋ Register Teacher</button>
+    </div>
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Teacher</th>
+              <th>Email</th>
+              <th>Admission No</th>
+              <th>Role</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="teachersTableBody">
+            <tr><td colspan="5" style="padding:40px;text-align:center;">
+              <div class="skeleton" style="height:20px;width:200px;margin:0 auto;"></div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div><!-- end .main -->
 
 <!-- ══ REGISTER STUDENT MODAL ══ -->
@@ -821,6 +899,156 @@
   </div>
 </div>
 
+<!-- ══ EDIT STUDENT MODAL ══ -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">EDIT STUDENT</div>
+        <div style="font-size:12px;color:var(--ink-muted);margin-top:2px;" id="editStudentName">—</div>
+      </div>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="step-heading">👤 Personal Information</div>
+      <div class="form-grid" style="margin-bottom:20px;">
+        <div class="form-group">
+          <div class="form-label">First Name <span class="req">*</span></div>
+          <input class="field" type="text" id="e_fname">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Last Name <span class="req">*</span></div>
+          <input class="field" type="text" id="e_lname">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Date of Birth</div>
+          <input class="field" type="date" id="e_dob">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Gender</div>
+          <select class="field" id="e_gender">
+            <option value="">Select…</option>
+            <option>Male</option><option>Female</option>
+          </select>
+        </div>
+        <div class="form-group span2">
+          <div class="form-label">Home Address</div>
+          <input class="field" type="text" id="e_address">
+        </div>
+      </div>
+      <div class="step-heading">📚 Academic Details</div>
+      <div class="form-grid" style="margin-bottom:20px;">
+        <div class="form-group">
+          <div class="form-label">Class <span class="req">*</span></div>
+          <select class="field" id="e_class">
+            <option value="">Select class…</option>
+            <option value="1">Form 1 East</option>
+            <option value="2">Form 1 West</option>
+            <option value="3">Form 2 East</option>
+            <option value="4">Form 2 West</option>
+            <option value="5">Form 3 East</option>
+            <option value="6">Form 3 West</option>
+            <option value="7">Form 4 East</option>
+            <option value="8">Form 4 West</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Status</div>
+          <select class="field" id="e_status">
+            <option>Active</option>
+            <option>Inactive</option>
+            <option>Suspended</option>
+            <option>Graduated</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">KCPE Score</div>
+          <input class="field" type="number" id="e_kcpe" min="0" max="500">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Blood Group</div>
+          <select class="field" id="e_blood">
+            <option value="">Unknown</option>
+            <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+            <option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+          </select>
+        </div>
+      </div>
+      <div class="step-heading">👨‍👩‍👧 Parent / Guardian</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <div class="form-label">Guardian Name</div>
+          <input class="field" type="text" id="e_gname">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Relationship</div>
+          <select class="field" id="e_relation">
+            <option>Father</option><option>Mother</option>
+            <option>Guardian</option><option>Grandparent</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Phone</div>
+          <input class="field" type="tel" id="e_phone">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Email</div>
+          <input class="field" type="text" id="e_email">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" id="editSaveBtn" onclick="saveEditStudent()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REGISTER TEACHER MODAL ══ -->
+<div class="modal-overlay" id="teacherModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">REGISTER TEACHER</div>
+        <div style="font-size:12px;color:var(--ink-muted);margin-top:2px;">Add a new teacher account</div>
+      </div>
+      <button class="modal-close" onclick="closeTeacherModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <div class="form-label">Full Name <span class="req">*</span></div>
+          <input class="field" type="text" id="t_name" placeholder="e.g. John Kamau">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Email <span class="req">*</span></div>
+          <input class="field" type="text" id="t_email" placeholder="teacher@school.ac.ke">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Phone</div>
+          <input class="field" type="tel" id="t_phone" placeholder="07XXXXXXXX">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Subject</div>
+          <input class="field" type="text" id="t_subject" placeholder="e.g. Mathematics">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Password <span class="req">*</span></div>
+          <input class="field" type="text" id="t_password" placeholder="Set login password">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Staff No</div>
+          <input class="field" type="text" id="t_staffno" placeholder="e.g. TCH-002">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeTeacherModal()">Cancel</button>
+      <button class="btn btn-primary" id="teacherSaveBtn" onclick="submitTeacher()">✓ Register Teacher</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast">
   <span class="toast-icon" id="toastIcon">✅</span>
@@ -917,6 +1145,7 @@
         <td>
           <div class="row-actions" onclick="event.stopPropagation()">
             <button class="icon-btn" onclick="viewStudent(${s.id})" title="View">👁</button>
+            <button class="icon-btn" onclick="editStudent(${s.id}, event)" title="Edit">✏️</button>
             <button class="icon-btn danger" onclick="deleteStudent(${s.id}, event)" title="Delete">🗑</button>
           </div>
         </td>
@@ -1127,8 +1356,224 @@
     }
   }
 
-  // ── NAVIGATION ──
-  const pageTitles = { students:'Students', overview:'Overview', classes:'Classes', fees:'Fee Reports', settings:'Settings' };
+  // ── HAMBURGER MENU ──
+  function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.getElementById('hamburger').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('show');
+  }
+
+  function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('hamburger').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('show');
+  }
+
+  // Close sidebar on nav item click (mobile)
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 700) closeSidebar();
+    });
+  });
+
+  // ── EDIT STUDENT ──
+  let editingStudentId = null;
+
+  async function editStudent(id, e) {
+    e.stopPropagation();
+    editingStudentId = id;
+    document.getElementById('editModal').classList.add('show');
+
+    try {
+      const res  = await fetch(`${API}/students/${id}`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!data.success) throw new Error();
+
+      const st = data.student;
+      const p  = st.parents && st.parents[0] ? st.parents[0] : {};
+
+      document.getElementById('editStudentName').textContent = `${st.first_name} ${st.last_name} — ${st.admission_no}`;
+      document.getElementById('e_fname').value   = st.first_name || '';
+      document.getElementById('e_lname').value   = st.last_name  || '';
+      document.getElementById('e_dob').value     = st.date_of_birth ? st.date_of_birth.split('T')[0] : '';
+      document.getElementById('e_gender').value  = st.gender || '';
+      document.getElementById('e_address').value = st.address || '';
+      document.getElementById('e_class').value   = st.class_id || '';
+      document.getElementById('e_status').value  = st.status || 'Active';
+      document.getElementById('e_kcpe').value    = st.kcpe_score || '';
+      document.getElementById('e_blood').value   = st.blood_group || '';
+      document.getElementById('e_gname').value   = p.full_name || '';
+      document.getElementById('e_relation').value = p.relationship || 'Father';
+      document.getElementById('e_phone').value   = p.phone_primary || '';
+      document.getElementById('e_email').value   = p.email || '';
+    } catch (err) {
+      showToast('❌ Error', 'Could not load student data.');
+      closeEditModal();
+    }
+  }
+
+  function closeEditModal() {
+    document.getElementById('editModal').classList.remove('show');
+    editingStudentId = null;
+  }
+
+  async function saveEditStudent() {
+    if (!editingStudentId) return;
+    const btn = document.getElementById('editSaveBtn');
+    btn.textContent = 'Saving…'; btn.disabled = true;
+
+    const body = {
+      first_name:          document.getElementById('e_fname').value.trim(),
+      last_name:           document.getElementById('e_lname').value.trim(),
+      date_of_birth:       document.getElementById('e_dob').value || null,
+      gender:              document.getElementById('e_gender').value,
+      address:             document.getElementById('e_address').value,
+      class_id:            document.getElementById('e_class').value,
+      status:              document.getElementById('e_status').value,
+      kcpe_score:          document.getElementById('e_kcpe').value || null,
+      blood_group:         document.getElementById('e_blood').value,
+      parent_name:         document.getElementById('e_gname').value,
+      parent_relationship: document.getElementById('e_relation').value,
+      parent_phone:        document.getElementById('e_phone').value,
+      parent_email:        document.getElementById('e_email').value,
+    };
+
+    try {
+      const res  = await fetch(`${API}/students/${editingStudentId}`, {
+        method: 'PUT', headers: authHeaders(), body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeEditModal();
+        await loadStudents();
+        showToast('✅ Updated', 'Student information saved successfully.');
+      } else {
+        showToast('❌ Error', data.message || 'Update failed.');
+      }
+    } catch (err) {
+      showToast('❌ Error', 'Could not connect to server.');
+    } finally {
+      btn.textContent = '💾 Save Changes'; btn.disabled = false;
+    }
+  }
+
+  // ── TEACHERS ──
+  let allTeachers = [];
+
+  async function loadTeachers() {
+    try {
+      const res  = await fetch(`${API}/students/teachers`, { headers: authHeaders() });
+      const data = await res.json();
+      if (data.success) {
+        allTeachers = data.teachers;
+        renderTeachers(allTeachers);
+        document.getElementById('navTeacherCount').textContent = allTeachers.length;
+        document.getElementById('teacherCountText').textContent = `${allTeachers.length} teachers registered`;
+      }
+    } catch (err) {
+      // Teachers endpoint may not exist yet
+      document.getElementById('teachersTableBody').innerHTML =
+        `<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--ink-muted);">No teachers found.</td></tr>`;
+    }
+  }
+
+  function renderTeachers(teachers) {
+    const tbody = document.getElementById('teachersTableBody');
+    if (!teachers.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--ink-muted);">No teachers registered yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = teachers.map((t, i) => `
+      <tr>
+        <td>
+          <div class="s-cell">
+            <div class="s-avatar" style="background:${avatarColors[i % avatarColors.length]}">${initials(t.name || t.email)}</div>
+            <div>
+              <div class="s-name">${t.name || t.email}</div>
+              <div class="s-sub">${t.subject || 'Teacher'}</div>
+            </div>
+          </div>
+        </td>
+        <td style="color:var(--ink-muted);font-size:12px;">${t.email || '—'}</td>
+        <td style="font-family:monospace;font-size:11px;color:var(--ink-muted)">${t.admission_no || '—'}</td>
+        <td><span class="badge badge-blue">Teacher</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="icon-btn danger" onclick="deleteTeacher(${t.id})" title="Delete">🗑</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function openTeacherModal() {
+    document.getElementById('teacherModal').classList.add('show');
+    ['t_name','t_email','t_phone','t_subject','t_password','t_staffno'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+  }
+
+  function closeTeacherModal() {
+    document.getElementById('teacherModal').classList.remove('show');
+  }
+
+  async function submitTeacher() {
+    const name     = document.getElementById('t_name').value.trim();
+    const email    = document.getElementById('t_email').value.trim();
+    const password = document.getElementById('t_password').value.trim();
+    const staffno  = document.getElementById('t_staffno').value.trim();
+
+    if (!name)     { showToast('⚠️ Required', 'Enter teacher name.'); return; }
+    if (!email)    { showToast('⚠️ Required', 'Enter email address.'); return; }
+    if (!password) { showToast('⚠️ Required', 'Set a password.'); return; }
+
+    const btn = document.getElementById('teacherSaveBtn');
+    btn.textContent = 'Registering…'; btn.disabled = true;
+
+    try {
+      const res  = await fetch(`${API}/students/register-teacher`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({
+          name, email, password,
+          admission_no: staffno || null,
+          subject: document.getElementById('t_subject').value.trim(),
+          phone:   document.getElementById('t_phone').value.trim(),
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        closeTeacherModal();
+        await loadTeachers();
+        showToast('🎉 Registered!', `${name} added as teacher.`);
+      } else {
+        showToast('❌ Error', data.message || 'Registration failed.');
+      }
+    } catch (err) {
+      showToast('❌ Error', 'Could not connect to server.');
+    } finally {
+      btn.textContent = '✓ Register Teacher'; btn.disabled = false;
+    }
+  }
+
+  async function deleteTeacher(id) {
+    if (!confirm('Remove this teacher account? This cannot be undone.')) return;
+    try {
+      const res  = await fetch(`${API}/students/teachers/${id}`, {
+        method: 'DELETE', headers: authHeaders()
+      });
+      const data = await res.json();
+      if (data.success) {
+        allTeachers = allTeachers.filter(t => t.id !== id);
+        renderTeachers(allTeachers);
+        showToast('🗑 Removed', 'Teacher account deleted.');
+      }
+    } catch (err) {
+      showToast('❌ Error', 'Could not delete teacher.');
+    }
+  }
+
+  // ── NAVIGATION (updated to load teachers) ──
+  const pageTitles = { students:'Students', teachers:'Teachers', overview:'Overview', classes:'Classes', fees:'Fee Reports', settings:'Settings' };
 
   function showPage(name, el) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1136,6 +1581,7 @@
     document.getElementById(`page-${name}`).classList.add('active');
     if (el) el.classList.add('active');
     document.getElementById('pageTitle').textContent = pageTitles[name] || name;
+    if (name === 'teachers') loadTeachers();
   }
 
   // ── LOGOUT ──
@@ -1161,8 +1607,19 @@
   document.getElementById('viewModal').addEventListener('click', e => {
     if (e.target.id === 'viewModal') closeViewModal();
   });
+  document.getElementById('editModal').addEventListener('click', e => {
+    if (e.target.id === 'editModal') closeEditModal();
+  });
+  document.getElementById('teacherModal').addEventListener('click', e => {
+    if (e.target.id === 'teacherModal') closeTeacherModal();
+  });
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeRegisterModal(); closeViewModal(); } });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeRegisterModal(); closeViewModal();
+      closeEditModal(); closeTeacherModal();
+    }
+  });
 
   // ── INIT ──
   loadStudents();

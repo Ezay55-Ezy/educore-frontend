@@ -315,9 +315,36 @@
   @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
 
   @media (max-width: 900px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+  .hamburger {
+    display: none;
+    flex-direction: column; gap: 5px;
+    cursor: pointer; padding: 8px;
+    background: none; border: none; z-index: 300;
+  }
+  .hamburger span {
+    display: block; width: 22px; height: 2px;
+    background: var(--ink); border-radius: 2px;
+    transition: all 0.3s;
+  }
+  .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px,5px); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px,-5px); }
+
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 99;
+  }
+  .sidebar-overlay.show { display: block; }
+
   @media (max-width: 700px) {
-    .sidebar { transform: translateX(-100%); }
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      z-index: 200;
+    }
+    .sidebar.open { transform: translateX(0); }
     .main { margin-left: 0; }
+    .hamburger { display: flex; }
     .page { padding: 16px; }
   }
 </style>
@@ -359,8 +386,14 @@
 <!-- MAIN -->
 <div class="main">
 
+  <!-- SIDEBAR OVERLAY -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
   <!-- TOPBAR -->
   <div class="topbar">
+    <button class="hamburger" id="hamburger" onclick="toggleSidebar()">
+      <span></span><span></span><span></span>
+    </button>
     <div class="topbar-title">EduCore &nbsp;›&nbsp; <span id="pageTitle">Mark Attendance</span></div>
     <div class="topbar-right">
       <div class="today-badge" id="todayBadge">Today</div>
@@ -863,6 +896,21 @@ function showToast(icon, title, sub) {
   t.classList.add('show');
   setTimeout(function() { t.classList.remove('show'); }, 4000);
 }
+
+// ── HAMBURGER ──
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('hamburger').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('show');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+}
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => { if (window.innerWidth <= 700) closeSidebar(); });
+});
 
 // ── LOGOUT ──
 function logout() {
